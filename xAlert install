@@ -1,0 +1,232 @@
+The following steps install xAlert and xProbe on a same clean Ubuntu 16.04. All is done as root (sudo su). You must have internet connection.
+
+1. modify /etc/default/grub
+GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0"
+$ update-grub
+
+-important: also change the hostname to one word (remove '-' in hostname) by editing
+/etc/hostname
+/etc/hosts
+
+Then reboot.
+
+2. install dependencies
+
+$ apt-get update
+$ apt-get install git vim curl
+$ cd /usr/local/src
+$ git clone https://github.com/jingwang/xAlert-web-reference.git
+$ git clone https://github.com/jingwang/xAlert-scripts.git
+$ git clone https://github.com/jingwang/erlangshen-web
+$ git clone https://github.com/ntop/nDPI.git
+$ git clone https://github.com/jingwang/xAlert-ntopng.git
+$ git clone https://github.com/jingwang/xAlert-elastalert
+$ git clone https://github.com/jingwang/barnyard2.git
+$ wget -qO - https://packages.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+$ echo "deb https://packages.elastic.co/logstash/2.4/debian stable main" | sudo tee -a /etc/apt/sources.list
+$ curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+$ apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
+$ echo "deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list
+
+$ apt-get update
+$ apt-get install help2man nodejs logstash libpcap-dev python-software-properties python g++ make mongodb-org libxslt1-dev libxml2-dev wireshark openssh-server tcpdump redis-server redis-tools default-jdk ntp libreadline6 libreadline6-dev mysql-server bridge-utils flex bison build-essential checkinstall libnet1-dev libpcre3-dev libnetfilter-queue-dev iptables-dev zlib1g-dev libtool autoconf libpcap-dev libmysqld-dev libprelude-dev libmysqlclient-dev daemonlogger libpcre3-dev libpcre3 libjson0 libjson0-dev libdumbnet1 libdumbnet-dev libcurl4-openssl-dev conntrack libglib2.0-dev libgeoip-dev libnl-3-dev libzmq-dev texinfo texlive python-pip python-dev supervisor
+(mysql login root/root)
+$ pip install --upgrade pip
+$ pip install --upgrade virtualenv
+
+edit /etc/environment to add JAVA_HOME and source it
+JAVA_HOME="/usr/lib/jvm/default-java"
+$ source /etc/environment
+
+
+3. install elasticsearch 2.4.1 and elastalert
+
+$ touch /var/log/elastalert.log
+$ dpkg -i /usr/local/src/xAlert-scripts/elasticsearch-2.4.1.deb
+$ cp /usr/local/src/xAlert-scripts/elasticsearch-conf/* /etc/elasticsearch
+$ cp /usr/local/src/erlangshen-web/scripts/groovy/* /etc/elasticsearch/scripts/
+
+
+$ mkdir /etc/elastalert
+$ mkdir /etc/elastalert/rules
+$ cd /usr/local/src/xAlert-elastalert
+$ python setup.py install
+(if you encounter 104 error, just run it several times until all dependencies are successfully installed)
+$ pip install -r requirements.txt
+$ cp /usr/local/src/xAlert-elastalert/config.yaml /etc/elastalert/
+$ cp /usr/local/src/xAlert-elastalert/rules/*.yaml /etc/elastalert/rules/
+
+Create index for elastalert
+$ cd /usr/local/src/xAlert-elastalert
+$ elastalert-create-index
+(localhost, 9200, f, blank, blank, blank, default, default)
+you can check your index at localhost:9200/elastalert_status
+
+4. install ntopng from source (2.4)
+
+$ apt-get install build-essential git bison flex libglib2.0 libxml2-dev libpcap-dev libtool rrdtool librrd-dev autoconf automake autogen redis-server wget libsqlite3-dev libhiredis-dev libgeoip-dev libcurl4-openssl-dev libpango1.0-dev libcairo2-dev libpng12-dev libnetfilter-queue-dev zlib1g-dev libzmq3-dev
+$ cd /usr/local/src/nDPI; ./autogen.sh; ./configure; make; cd ..
+$ cd /usr/local/src/xAlert-ntopng
+$ git checkout dev
+$ ./autogen.sh
+$ ./configure
+$ make
+$ make install
+$ mkdir /etc/ntopng
+$ cp /usr/local/src/xAlert-scripts/ntopng-conf/* /etc/ntopng/
+edit /etc/ntopng/ntopng.conf if necessary to change interface to be inspected
+
+
+5. install and configure snort
+$ apt-get install snort
+(choose the same interface as ntopng)
+(allow non-root user to run tcpdump)
+$ mkdir -p /var/log/snort
+$ cp -R /usr/local/src/xAlert-scripts/snort-conf/* /etc/snort
+
+
+6. install barnyard2 to capture snort data and output to remote syslog
+
+$ cp /usr/local/src/xAlert-scripts/daq-2.0.2.tar.gz /usr/local/src
+$ cp /usr/local/src/xAlert-scripts/libdnet-1.12.tgz /usr/local/src
+$ cd /usr/local/src/
+$ tar xvfz libdnet-1.12.tgz
+$ cd libdnet-1.12/
+$ ./configure --enable-static --with-pic
+$ make
+$ make install
+$ ln -s /usr/local/lib/libdnet.1.0.1 /usr/lib/libdnet.1
+$ ldconfig
+$ cd /usr/local/src/
+$ tar xvfz daq-2.0.2.tar.gz
+$ cd daq-2.0.2
+$ ./configure --libdir=/usr/lib --includedir=/usr/include
+$ make
+$ make install
+$ ldconfig
+$ cd /usr/local/src/barnyard2
+$ ./autogen.sh
+$ ./configure
+$ make
+$ make install
+$ mkdir /etc/barnyard2
+$ cp /usr/local/src/xAlert-scripts/barnyard2-conf/barnyard2.conf /etc/barnyard2/
+
+-important:
+1) modify barnyard2.conf to make sure hostname, interface is consistent with machine's hostname and ntopng/snort's listening interface
+config hostname:   $hostname (replace with hostname)
+config interface:  $interface (replace with interface)
+output log_syslog_full: sensor_name $hostname-$interface, server localhost, protocol udp, port 10514, operation_mode complete
+2) change output server ip
+output log_syslog_full: sensor_name $hostname-$interface, server localhost, protocol udp, port 10514, operation_mode complete
+
+
+7. configure logstash
+$ /opt/logstash/bin/logstash-plugin install logstash-output-syslog
+$ /opt/logstash/bin/logstash-plugin install logstash-filter-translate
+$ rm -r /etc/logstash/conf.d
+$ cp -R /usr/local/src/xAlert-scripts/logstash-conf/* /etc/logstash/
+
+8. init erlangshen-web
+$ cd /usr/local/src/erlangshen-web
+$ npm install
+$ npm install -g forever
+(run following commands after mongoDB service has started - Step 9)
+$ node scripts/initApp.js
+$ node scripts/populateAggregations.js
+$ node scripts/populateDefaultUis.js
+$ node scripts/populateFilters.js
+
+
+9. change grub to no-wait
+edit /etc/default/grub:
+GRUB_HIDDEN_TIMEOUT=0
+GRUB_TIMEOUT=0
+
+$ update-grub
+
+9. turn on services
+
+$ cp /usr/local/src/xAlert-scripts/systemd/system/mongodb.service /etc/systemd/system/
+$ cp /usr/local/src/xAlert-scripts/systemd/system/kibana.service /etc/systemd/system/
+$ cp /usr/local/src/xAlert-scripts/systemd/system/barnyard2.service /etc/systemd/system/
+$ cp /usr/local/src/xAlert-scripts/systemd/system/ntopng.service /etc/systemd/system
+$ cp /usr/local/src/xAlert-scripts/systemd/system/snort.service /etc/systemd/system/
+(change /etc/systemd/system/snort.service to specify the correct interface)
+$ cp /usr/local/src/xAlert-scripts/upstart/logstash /etc/init.d/
+$ cp /usr/local/src/erlangshen-web/scripts/xAlert.sh /etc/init.d/
+$ chmod +x /etc/init.d/xAlert.sh
+$ update-rc.d xAlert.sh defaults
+
+-note: elasticsearch upstart script should have already been installed from the installation package
+
+$ systemctl daemon-reload
+
+$ systemctl enable mongodb.service
+$ systemctl start mongodb
+
+$ systemctl enable elasticsearch.service
+$ systemctl start elasticsearch
+(localhost:9200)
+
+$ systemctl enable logstash.service
+$ systemctl start logstash
+
+$ systemctl enable snort.service
+$ systemctl start snort
+
+$ systemctl enable barnyard2.service
+$ systemctl start barnyard2
+
+$ systemctl start redis-server.service
+$ systemctl enable ntopng.service
+$ systemctl start ntopng
+(localhost:3000)
+
+$ systemctl enable kibana.service
+$ systemctl start kibana
+(localhost:5601)
+
+11. change the listening interface to promisc mode
+edit /etc/network/interfaces, add the following block (replace eth0 with your interface where ntopng/snort is listening)
+
+auto eth0
+iface eth0 inet manual
+up ifconfig eth0 promisc up
+down ifconfig eth0 promisc down
+
+12. change xAlert visiting port to 80 instead of 5001
+$ apt-get update
+$ apt-get install nginx
+$ cd /etc/nginx/sites-enabled
+edit ./default to proxy port 5001 to 80
+
+server {
+        listen 80;
+	server_name localhost;
+
+        location / {
+        proxy_pass http://localhost:5001;
+        proxy_redirect off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+                
+        }
+
+then reboot
+
+Useful Notes:
+
+1. pull public update for ntopng
+
+$ cd /usr/local/src/xAlert-ntopng
+$ git remote add public https://github.com/ntop/ntopng.git
+$ git pull public dev
+rebuild and check everything is fine
+$ git push origin dev
+
+
+2. delete a index (e.g., ntopng-*) in elasticsearch:
+
+curl -XDELETE 'localhost:9200/ntopng-*'
