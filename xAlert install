@@ -52,7 +52,7 @@ $ mkdir /etc/elastalert/rules
 $ cd /usr/local/src/xAlert-elastalert
 $ python setup.py install
 (if you encounter 104 error, just run it several times until all dependencies are successfully installed)
-$ pip install -r requirements.txt
+$ pip --default-timeout=100 install -r ./requirements.txt
 $ cp /usr/local/src/xAlert-elastalert/config.yaml /etc/elastalert/
 $ cp /usr/local/src/xAlert-elastalert/rules/*.yaml /etc/elastalert/rules/
 
