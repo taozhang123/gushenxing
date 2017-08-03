@@ -29,8 +29,8 @@ $ apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
 $ echo "deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list
 
 $ apt-get update
-$ apt-get install help2man nodejs logstash libpcap-dev python-software-properties python g++ make mongodb-org libxslt1-dev libxml2-dev wireshark openssh-server tcpdump redis-server redis-tools default-jdk ntp libreadline6 libreadline6-dev mysql-server bridge-utils flex bison build-essential checkinstall libnet1-dev libpcre3-dev libnetfilter-queue-dev iptables-dev zlib1g-dev libtool autoconf libpcap-dev libmysqld-dev libprelude-dev libmysqlclient-dev daemonlogger libpcre3-dev libpcre3 libjson0 libjson0-dev libdumbnet1 libdumbnet-dev libcurl4-openssl-dev conntrack libglib2.0-dev libgeoip-dev libnl-3-dev libzmq-dev texinfo texlive python-pip python-dev supervisor
-(mysql login root/root)
+$ apt-get install help2man nodejs logstash libpcap-dev python-software-properties python g++ make mongodb-org libxslt1-dev libxml2-dev wireshark openssh-server tcpdump redis-server redis-tools default-jdk ntp libreadline6 libreadline6-dev mysql-server bridge-utils flex bison build-essential checkinstall libnet1-dev libpcre3-dev libnetfilter-queue-dev iptables-dev zlib1g-dev libtool autoconf libmysqld-dev libprelude-dev libmysqlclient-dev daemonlogger  libpcre3 libjson0 libjson0-dev libdumbnet1 libdumbnet-dev libcurl4-openssl-dev conntrack libglib2.0-dev libgeoip-dev libnl-3-dev libzmq-dev texinfo texlive python-pip python-dev supervisor libssl-dev libffi-dev
+  (mysql login root/root)
 $ pip install --upgrade pip
 $ pip install --upgrade virtualenv
 
