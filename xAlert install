@@ -58,7 +58,7 @@ $ cp /usr/local/src/xAlert-elastalert/rules/*.yaml /etc/elastalert/rules/
 
 Create index for elastalert
 $ cd /usr/local/src/xAlert-elastalert
-$ elastalert-create-index
+$ elastalert-create-index (ignore this command)
 (localhost, 9200, f, blank, blank, blank, default, default)(after opening 9200)
 you can check your index at localhost:9200/elastalert_status
 
@@ -70,6 +70,7 @@ $ cd /usr/local/src/xAlert-ntopng
 $ git checkout dev
 $ ./autogen.sh
 $ ./configure
+$ make geoip
 $ make
 $ make install
 $ mkdir /etc/ntopng
